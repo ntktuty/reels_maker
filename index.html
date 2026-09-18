@@ -93,6 +93,9 @@ video,audio{display:none;}
     <option value="9">ஸ்பீடு (வேகம்)</option>
     <option value="2">ஸ்லோ ஸ்பீடு</option>
   </select>
+  <label style="margin:0;">நீங்களே அமைக்க:</label>
+  <input type="range" id="tickerCustom" min="0.5" max="25" step="0.5" value="4" style="flex:1;min-width:130px;">
+  <input type="number" id="tickerCustomNum" min="0.5" max="25" step="0.5" value="4" style="width:72px;">
 </div>
 
 <h3>5️⃣ சேனல் லோகோ</h3>
@@ -144,6 +147,7 @@ const customAudioEl=document.getElementById('customAudioEl');
 const layoutMode=document.getElementById('layoutMode');
 const titleOn=document.getElementById('titleOn'), titleText=document.getElementById('titleText'), titleBg=document.getElementById('titleBg'), titlePos=document.getElementById('titlePos');
 const tickerOn=document.getElementById('tickerOn'), tickerText=document.getElementById('tickerText'), tickerSpeed=document.getElementById('tickerSpeed');
+const tickerCustom=document.getElementById('tickerCustom'), tickerCustomNum=document.getElementById('tickerCustomNum');
 const globalFit=document.getElementById('globalFit'), applyFitAll=document.getElementById('applyFitAll');
 const logoOn=document.getElementById('logoOn'), logoInput=document.getElementById('logoInput'), logoCorner=document.getElementById('logoCorner');
 const frameOn=document.getElementById('frameOn'), frameInput=document.getElementById('frameInput'), frameWidth=document.getElementById('frameWidth'), framePos=document.getElementById('framePos');
@@ -380,7 +384,10 @@ function drawRectCover(m,x,y,w,h,fit){
 }
 function drawVideoCover(m,fit){ drawRectCover(m,0,0,OUT_W,OUT_H,fit); }
 
-function tickerStep(){ return parseFloat(tickerSpeed.value)||4; }
+function tickerStep(){ const v=parseFloat(tickerCustom.value); return (isFinite(v)&&v>0)?v:4; }
+tickerSpeed.addEventListener('change',()=>{ tickerCustom.value=tickerSpeed.value; tickerCustomNum.value=tickerSpeed.value; });
+tickerCustom.addEventListener('input',()=>{ tickerCustomNum.value=tickerCustom.value; });
+tickerCustomNum.addEventListener('input',()=>{ const v=Math.max(0.5,Math.min(25,parseFloat(tickerCustomNum.value)||4)); tickerCustom.value=v; });
 function drawOverlays(){
   if(titleOn.checked && titleText.value.trim()){
     ctx.save();
@@ -469,28 +476,48 @@ function playImageClip(c,onFrame,isActive){
   });
 }
 
+function prepareVideo(el,c){
+  return new Promise(resolve=>{
+    let done=false;
+    const finish=()=>{ if(done) return; done=true; clearTimeout(t); el.onloadedmetadata=null; el.onseeked=null; el.onerror=null; resolve(); };
+    const t=setTimeout(finish,5000);
+    el.onerror=finish;
+    el.onloadedmetadata=()=>{
+      const dur=el.duration||c.duration||0;
+      const target=Math.max(0,Math.min(c.start, dur?dur-0.05:c.start));
+      if(Math.abs(el.currentTime-target)<0.06){ finish(); return; }
+      el.onseeked=finish;
+      try{ el.currentTime=target; }catch(err){ finish(); }
+    };
+    el.loop=false; el.pause();
+    el.src=c.url;
+    try{ el.load(); }catch(err){}
+  });
+}
+
 async function playSequenceSingle(onFrame,isActive){
-  for(let ci=0; ci<clips.length && isActive(); ci++){
+  for(let ci=0; ci<clips.length; ci++){
+    if(!isActive()) break;
     const c=clips[ci];
     if(c.isImage){ await playImageClip(c,onFrame,isActive); continue; }
+    await prepareVideo(hv,c);
+    if(!isActive()) break;
+    setClipAudioRouting(hv,customAudioEl,c);
+    await hv.play().catch(()=>{});
     await new Promise(res=>{
-      hv.src=c.url; hv.loop=false;
-      hv.onloadedmetadata=()=>{
-        hv.currentTime=c.start;
-        hv.onseeked=async ()=>{
-          setClipAudioRouting(hv,customAudioEl,c);
-          await hv.play().catch(()=>{});
-          const step=()=>{
-            if(!isActive()){ res(); return; }
-            if(hv.currentTime>=c.end || hv.ended){ hv.pause(); res(); return; }
-            drawVideoCover(hv,c.fit); tickerOffset+=tickerStep(); drawOverlays();
-            if(onFrame) onFrame();
-            rafId=requestAnimationFrame(step);
-          };
-          step();
-        };
+      let lastT=-1, stall=0;
+      const step=()=>{
+        if(!isActive()){ res(); return; }
+        if(hv.currentTime>=c.end || hv.ended){ res(); return; }
+        if(Math.abs(hv.currentTime-lastT)<0.001){ stall++; if(stall>150){ res(); return; } }
+        else { stall=0; lastT=hv.currentTime; }
+        drawVideoCover(hv,c.fit); tickerOffset+=tickerStep(); drawOverlays();
+        if(onFrame) onFrame();
+        rafId=requestAnimationFrame(step);
       };
+      step();
     });
+    try{ hv.pause(); customAudioEl.pause(); }catch(err){}
   }
 }
 
@@ -509,17 +536,9 @@ async function playGridSequential(mode,onFrame,isActive){
       state.imgStart=performance.now();
       state.currentClip=c; state.transitioning=false; return;
     }
-    await new Promise(res=>{
-      state.video.src=c.url;
-      state.video.onloadedmetadata=()=>{
-        state.video.currentTime=c.start;
-        state.video.onseeked=async ()=>{
-          setClipAudioRouting(state.video,state.audio,c);
-          await state.video.play().catch(()=>{});
-          res();
-        };
-      };
-    });
+    await prepareVideo(state.video,c);
+    setClipAudioRouting(state.video,state.audio,c);
+    await state.video.play().catch(()=>{});
     state.currentClip=c;
     state.transitioning=false;
   }
