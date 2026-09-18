@@ -26,7 +26,7 @@ label{font-size:.8rem;color:var(--muted);display:block;margin-bottom:4px;}
 .clip .info .nm{font-size:.8rem;margin-bottom:4px;word-break:break-all;}
 .trim{display:flex;gap:6px;align-items:center;font-size:.75rem;color:var(--muted);flex-wrap:wrap;}
 .trim input{width:60px;}
-.audiorow{margin-top:6px;display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted);}
+.audiorow{margin-top:6px;display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted);flex-wrap:wrap;}
 .audiorow input[type=file]{font-size:.7rem;}
 .clipbtns{display:flex;flex-direction:column;gap:4px;}
 .stage{display:flex;justify-content:center;background:#000;border-radius:12px;overflow:hidden;margin-bottom:10px;}
@@ -46,20 +46,20 @@ video,audio{display:none;}
 <p class="sub">பல வீடியோக்களை இணைத்து/பிரித்து, தலைப்பு/ஸ்குரோலிங்/லோகோ/ஃபிரேம் சேர்த்து ஒரே ரீலா உருவாக்குங்கள்</p>
 
 <div class="card">
-<h3>1️⃣ வீடியோக்கள்</h3>
-<input type="file" id="clipInput" accept="video/*" multiple>
-<div id="clipList" style="margin-top:10px;"></div>
-<div class="status" style="text-align:left;">💡 ஒவ்வொரு வீடியோவுக்கும் தனி ஆடியோ சேர்க்கலாம் — சேர்க்கா விட்டால் ஒரிஜினல் வீடியோ ஆடியோவே வரும்.</div>
+<h3>1️⃣ லேஅவுட்</h3>
+<select id="layoutMode">
+  <option value="single">ஒற்றை வீடியோ (வரிசையா இணைப்பு)</option>
+  <option value="tb">மேல் + கீழ் (2 பகுதி)</option>
+  <option value="t2b1">மேலே இரண்டு + கீழே ஒன்று (3 பகுதி)</option>
+</select>
+<div class="status" style="text-align:left;">Grid லேஅவுட்-ல் ஒவ்வொரு வீடியோவுக்கும் அது எந்த பகுதியில் ஓடும்-ன்னு கீழே தேர்வு செய்யலாம். ஒரே பகுதிக்கு பல வீடியோ கொடுத்தால் அவை ஒன்றன் பின் ஒன்றாக ஓடும்.</div>
 </div>
 
 <div class="card">
-<h3>2️⃣ லேஅவுட்</h3>
-<select id="layoutMode">
-  <option value="single">ஒற்றை வீடியோ (வரிசையா இணைப்பு)</option>
-  <option value="tb">மேல் ஒன்று + கீழ் ஒன்று (2 வீடியோ)</option>
-  <option value="t2b1">மேலே இரண்டு + கீழே ஒன்று (3 வீடியோ)</option>
-</select>
-<div class="status" style="text-align:left;">Grid லேஅவுட்-ல் மேலே பட்டியலின் முதல் 2/3 வீடியோக்கள் ஒரே நேரத்தில் காட்டப்படும்.</div>
+<h3>2️⃣ வீடியோக்கள்</h3>
+<input type="file" id="clipInput" accept="video/*" multiple>
+<div id="clipList" style="margin-top:10px;"></div>
+<div class="status" style="text-align:left;">💡 ஒவ்வொரு வீடியோவுக்கும் தனி ஆடியோ சேர்க்கலாம் — சேர்க்கா விட்டால் ஒரிஜினல் வீடியோ ஆடியோவே வரும்.</div>
 </div>
 
 <div class="card">
@@ -75,9 +75,18 @@ video,audio{display:none;}
   <select id="logoCorner"><option value="tr">மேல்-வலது</option><option value="tl">மேல்-இடது</option><option value="br">கீழ்-வலது</option><option value="bl">கீழ்-இடது</option></select>
 </div>
 
-<h3>6️⃣ ஃபிரேம் (இடது & வலது ஓரம்)</h3>
-<div class="row"><input type="checkbox" id="frameOn"><input type="file" id="frameInput" accept="image/*"><label style="margin:0;">அகலம்(px):</label><input type="number" id="frameWidth" value="60" min="10" max="200" style="width:70px;"></div>
-<div class="status" style="text-align:left;">💡 உங்க படம் இடது ஓரத்தில் ஒட்டப்பட்டு, வலது ஓரத்தில் அதே படம் புரட்டப்பட்டு (mirror) காட்டப்படும்.</div>
+<h3>6️⃣ ஃபிரேம்</h3>
+<div class="row" style="margin-bottom:6px;">
+  <input type="checkbox" id="frameOn"><input type="file" id="frameInput" accept="image/*">
+  <select id="framePos">
+    <option value="left">இடது மட்டும்</option>
+    <option value="right">வலது மட்டும்</option>
+    <option value="both" selected>இரண்டு பக்கமும்</option>
+    <option value="border">முழு சுற்றளவு (பார்டர்)</option>
+  </select>
+  <label style="margin:0;">அகலம்(px):</label><input type="number" id="frameWidth" value="60" min="10" max="200" style="width:70px;">
+</div>
+<div class="status" style="text-align:left;">💡 "முழு சுற்றளவு" தேர்வு செய்தால் நான்கு ஓரங்களிலும் (மேலே/கீழே/இடது/வலது) படம் வந்து மூலைகளையும் மூடும்.</div>
 </div>
 
 <div class="card">
@@ -98,7 +107,7 @@ video,audio{display:none;}
 <button class="btn secondary" id="dlBtn" style="display:none;width:100%;margin-top:8px;">⬇️ இறுதி வீடியோவைப் பதிவிறக்கு</button>
 </div>
 
-<video id="hv" playsinline muted></video>
+<video id="hv" playsinline></video>
 <audio id="customAudioEl" preload="auto"></audio>
 </div>
 <script>
@@ -110,7 +119,7 @@ const layoutMode=document.getElementById('layoutMode');
 const titleOn=document.getElementById('titleOn'), titleText=document.getElementById('titleText'), titleBg=document.getElementById('titleBg');
 const tickerOn=document.getElementById('tickerOn'), tickerText=document.getElementById('tickerText');
 const logoOn=document.getElementById('logoOn'), logoInput=document.getElementById('logoInput'), logoCorner=document.getElementById('logoCorner');
-const frameOn=document.getElementById('frameOn'), frameInput=document.getElementById('frameInput'), frameWidth=document.getElementById('frameWidth');
+const frameOn=document.getElementById('frameOn'), frameInput=document.getElementById('frameInput'), frameWidth=document.getElementById('frameWidth'), framePos=document.getElementById('framePos');
 const previewBtn=document.getElementById('previewBtn'), thumbBtn=document.getElementById('thumbBtn'), thumbPrev=document.getElementById('thumbPrev');
 const exportBtn=document.getElementById('exportBtn'), statusText=document.getElementById('statusText');
 const pWrap=document.getElementById('pWrap'), pBar=document.getElementById('pBar');
@@ -125,6 +134,17 @@ let audioCtx=null, audioDest=null;
 let slotVideos=[], slotAudios=[];
 
 function uid(){return Math.random().toString(36).slice(2,9);}
+
+function regionsForMode(mode){
+  if(mode==='tb') return [{key:'top',label:'மேல்'},{key:'bottom',label:'கீழ்'}];
+  if(mode==='t2b1') return [{key:'topleft',label:'மேல்-இடது'},{key:'topright',label:'மேல்-வலது'},{key:'bottom',label:'கீழ்'}];
+  return null;
+}
+function gridRects(mode){
+  if(mode==='tb') return [{x:0,y:0,w:OUT_W,h:OUT_H/2},{x:0,y:OUT_H/2,w:OUT_W,h:OUT_H/2}];
+  if(mode==='t2b1') return [{x:0,y:0,w:OUT_W/2,h:OUT_H/2},{x:OUT_W/2,y:0,w:OUT_W/2,h:OUT_H/2},{x:0,y:OUT_H/2,w:OUT_W,h:OUT_H/2}];
+  return null;
+}
 
 function ensureAudioGraph(){
   if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
@@ -143,18 +163,39 @@ function nodeFor(el){
   }catch(err){ console.warn('audio node error',err); return null; }
 }
 function getSlotVideo(i){
-  if(!slotVideos[i]){ const v=document.createElement('video'); v.playsInline=true; v.muted=true; document.body.appendChild(v); slotVideos[i]=v; }
+  if(!slotVideos[i]){ const v=document.createElement('video'); v.playsInline=true; document.body.appendChild(v); slotVideos[i]=v; }
   return slotVideos[i];
 }
 function getSlotAudio(i){
   if(!slotAudios[i]){ const a=document.createElement('audio'); a.preload='auto'; document.body.appendChild(a); slotAudios[i]=a; }
   return slotAudios[i];
 }
+function setClipAudioRouting(el,audioEl,clip){
+  ensureAudioGraph();
+  const vGain=nodeFor(el), cGain=audioEl?nodeFor(audioEl):null;
+  if(clip.audioUrl && cGain){
+    if(vGain) vGain.gain.value=0;
+    if(audioEl.src!==clip.audioUrl) audioEl.src=clip.audioUrl;
+    audioEl.currentTime=0; cGain.gain.value=1; audioEl.play().catch(()=>{});
+  } else {
+    if(vGain) vGain.gain.value=1;
+    if(cGain) cGain.gain.value=0;
+    if(audioEl){ audioEl.pause(); }
+  }
+}
+
+layoutMode.addEventListener('change', ()=>{
+  const regions=regionsForMode(layoutMode.value);
+  if(regions) clips.forEach((c,i)=>{ if(!regions.find(r=>r.key===c.region)) c.region=regions[i%regions.length].key; });
+  renderClipList();
+});
 
 clipInput.addEventListener('change', async (e)=>{
   const files=[...e.target.files];
   for(const f of files){ await addClip(f); }
   clipInput.value='';
+  const regions=regionsForMode(layoutMode.value);
+  if(regions) clips.forEach((c,i)=>{ if(!c.region) c.region=regions[i%regions.length].key; });
   renderClipList();
 });
 
@@ -170,7 +211,7 @@ function addClip(file){
         const tctx=tc.getContext('2d');
         const s=Math.max(120/v.videoWidth,120/v.videoHeight);
         tctx.drawImage(v,(120-v.videoWidth*s)/2,(120-v.videoHeight*s)/2,v.videoWidth*s,v.videoHeight*s);
-        clips.push({id:uid(),file,url,duration:v.duration,start:0,end:v.duration,thumb:tc.toDataURL('image/jpeg',0.7),audioFile:null,audioUrl:null});
+        clips.push({id:uid(),file,url,duration:v.duration,start:0,end:v.duration,thumb:tc.toDataURL('image/jpeg',0.7),audioFile:null,audioUrl:null,region:null});
         resolve();
       };
     };
@@ -179,15 +220,19 @@ function addClip(file){
 }
 
 function renderClipList(){
+  const regions=regionsForMode(layoutMode.value);
   clipListEl.innerHTML='';
   clips.forEach((c,i)=>{
     const div=document.createElement('div'); div.className='clip';
+    let regionSel='';
+    if(regions) regionSel=`<select data-ri="${i}" style="margin-top:6px;">${regions.map(r=>`<option value="${r.key}" ${c.region===r.key?'selected':''}>${r.label}</option>`).join('')}</select>`;
     div.innerHTML=`<img src="${c.thumb}">
       <div class="info"><div class="nm">${i+1}. ${c.file.name}</div>
         <div class="trim">தொடக்கம்:<input type="number" min="0" max="${c.duration.toFixed(1)}" step="0.1" value="${c.start.toFixed(1)}" data-i="${i}" data-k="start">
         முடிவு:<input type="number" min="0" max="${c.duration.toFixed(1)}" step="0.1" value="${c.end.toFixed(1)}" data-i="${i}" data-k="end">
         /${c.duration.toFixed(1)}s</div>
         <div class="audiorow">🎵 தனி ஆடியோ:<input type="file" accept="audio/*" data-ai="${i}">${c.audioFile?('<span>'+c.audioFile.name+'</span> <button class="btn small secondary" data-clearai="'+i+'">✖</button>'):''}</div>
+        ${regionSel}
       </div>
       <div class="clipbtns">
         <button class="btn small secondary" data-act="up" data-i="${i}">⬆️</button>
@@ -211,6 +256,9 @@ function renderClipList(){
   });
   clipListEl.querySelectorAll('button[data-clearai]').forEach(b=>{
     b.addEventListener('click',()=>{ const i=+b.dataset.clearai; clips[i].audioFile=null; clips[i].audioUrl=null; renderClipList(); });
+  });
+  clipListEl.querySelectorAll('select[data-ri]').forEach(sel=>{
+    sel.addEventListener('change',()=>{ clips[+sel.dataset.ri].region=sel.value; });
   });
   clipListEl.querySelectorAll('button[data-act]').forEach(b=>{
     b.addEventListener('click',()=>{
@@ -242,12 +290,6 @@ function drawRectCover(v,x,y,w,h){
 }
 function drawVideoCover(v){ drawRectCover(v,0,0,OUT_W,OUT_H); }
 
-function gridRects(mode){
-  if(mode==='tb') return [{x:0,y:0,w:OUT_W,h:OUT_H/2},{x:0,y:OUT_H/2,w:OUT_W,h:OUT_H/2}];
-  if(mode==='t2b1') return [{x:0,y:0,w:OUT_W/2,h:OUT_H/2},{x:OUT_W/2,y:0,w:OUT_W/2,h:OUT_H/2},{x:0,y:OUT_H/2,w:OUT_W,h:OUT_H/2}];
-  return null;
-}
-
 function drawOverlays(){
   if(titleOn.checked && titleText.value.trim()){
     ctx.save();
@@ -274,9 +316,13 @@ function drawOverlays(){
     ctx.restore();
   }
   if(frameOn.checked && frameImg){
-    const fw=parseInt(frameWidth.value)||60;
-    ctx.drawImage(frameImg,0,0,fw,OUT_H);
-    ctx.save(); ctx.translate(OUT_W,0); ctx.scale(-1,1); ctx.drawImage(frameImg,0,0,fw,OUT_H); ctx.restore();
+    const fw=parseInt(frameWidth.value)||60; const pos=framePos.value;
+    if(pos==='left'||pos==='both'||pos==='border') ctx.drawImage(frameImg,0,0,fw,OUT_H);
+    if(pos==='right'||pos==='both'||pos==='border'){ ctx.save(); ctx.translate(OUT_W,0); ctx.scale(-1,1); ctx.drawImage(frameImg,0,0,fw,OUT_H); ctx.restore(); }
+    if(pos==='border'){
+      ctx.drawImage(frameImg,0,0,OUT_W,fw);
+      ctx.save(); ctx.translate(0,OUT_H); ctx.scale(1,-1); ctx.drawImage(frameImg,0,0,OUT_W,fw); ctx.restore();
+    }
   }
 }
 
@@ -292,27 +338,14 @@ function renderStatic(){
     ctx.fillText('வீடியோவைப் பதிவேற்றவும்',OUT_W/2,OUT_H/2);
   }
 }
-[titleOn,titleText,titleBg,tickerOn,tickerText,logoOn,logoCorner,frameOn,frameWidth].forEach(el=>el.addEventListener('input',()=>{ if(!rafId) renderStatic(); }));
+[titleOn,titleText,titleBg,tickerOn,tickerText,logoOn,logoCorner,frameOn,frameWidth,framePos].forEach(el=>el.addEventListener('input',()=>{ if(!rafId) renderStatic(); }));
 renderStatic();
-
-function setClipAudioRouting(el,audioEl,clip){
-  ensureAudioGraph();
-  const vGain=nodeFor(el), cGain=audioEl?nodeFor(audioEl):null;
-  if(clip.audioUrl && cGain){
-    if(vGain) vGain.gain.value=0;
-    if(audioEl.src!==clip.audioUrl) audioEl.src=clip.audioUrl;
-    audioEl.currentTime=0; cGain.gain.value=1; audioEl.play().catch(()=>{});
-  } else {
-    if(vGain) vGain.gain.value=1;
-    if(cGain) cGain.gain.value=0;
-    if(audioEl){ audioEl.pause(); }
-  }
-}
 
 let previewing=false;
 previewBtn.addEventListener('click', async ()=>{
   if(previewing){ previewing=false; if(rafId) cancelAnimationFrame(rafId); previewBtn.textContent='▶️ முன்னோட்டம் பார்'; renderStatic(); return; }
   if(!clips.length){ statusText.textContent='முதலில் ஒரு வீடியோவைப் பதிவேற்றவும்.'; return; }
+  ensureAudioGraph();
   previewing=true; previewBtn.textContent='⏸️ நிறுத்து'; tickerOffset=0;
   await runTimeline(false);
   previewing=false; previewBtn.textContent='▶️ முன்னோட்டம் பார்';
@@ -323,7 +356,7 @@ thumbBtn.addEventListener('click', ()=>{
   thumbPrev.innerHTML=`<img src="${dataUrl}"><br><a class="btn small secondary" style="display:inline-block;margin-top:8px;text-decoration:none;" href="${dataUrl}" download="thumbnail.png">⬇️ தம்ப்நெயில் பதிவிறக்கு</a>`;
 });
 
-async function playSequenceSingle(recording,onFrame,isActive){
+async function playSequenceSingle(onFrame,isActive){
   for(let ci=0; ci<clips.length && isActive(); ci++){
     const c=clips[ci];
     await new Promise(res=>{
@@ -347,46 +380,69 @@ async function playSequenceSingle(recording,onFrame,isActive){
   }
 }
 
-async function playGrid(mode,recording,onFrame,isActive){
-  const rects=gridRects(mode), n=rects.length;
-  if(clips.length<n){ statusText.textContent=`⚠️ இந்த லேஅவுட்டுக்கு குறைந்தது ${n} வீடியோ வேண்டும்.`; return; }
-  const slots=clips.slice(0,n);
-  await Promise.all(slots.map((c,i)=>new Promise(res=>{
-    const v=getSlotVideo(i);
-    v.src=c.url;
-    v.onloadedmetadata=()=>{ v.currentTime=c.start; v.onseeked=()=>{ setClipAudioRouting(v,getSlotAudio(i),c); res(); }; };
-  })));
-  await Promise.all(slots.map(v=>{}));
-  const dur=Math.min(...slots.map(c=>c.end-c.start));
-  await Promise.all(slots.map((c,i)=>slotVideos[i].play().catch(()=>{})));
-  const t0=performance.now();
-  await new Promise(res=>{
-    const step=()=>{
-      if(!isActive()){ res(); return; }
-      const elapsed=(performance.now()-t0)/1000;
-      if(elapsed>=dur){ slots.forEach((c,i)=>slotVideos[i].pause()); res(); return; }
-      slots.forEach((c,i)=>drawRectCover(slotVideos[i],rects[i].x,rects[i].y,rects[i].w,rects[i].h));
+async function playGridSequential(mode,onFrame,isActive){
+  const regions=regionsForMode(mode), rects=gridRects(mode);
+  const states=regions.map((r,i)=>({clips:clips.filter(c=>c.region===r.key), idx:0, video:getSlotVideo(i), audio:getSlotAudio(i), finished:false, transitioning:false, currentClip:null}));
+  if(states.every(s=>s.clips.length===0)){ statusText.textContent='⚠️ ஒவ்வொரு பகுதிக்கும் குறைந்தது ஒரு வீடியோ ஒதுக்கவும்.'; return; }
+
+  async function loadNext(state){
+    if(state.idx>=state.clips.length){ state.finished=true; state.transitioning=false; return; }
+    state.transitioning=true;
+    const c=state.clips[state.idx];
+    await new Promise(res=>{
+      state.video.src=c.url;
+      state.video.onloadedmetadata=()=>{
+        state.video.currentTime=c.start;
+        state.video.onseeked=async ()=>{
+          setClipAudioRouting(state.video,state.audio,c);
+          await state.video.play().catch(()=>{});
+          res();
+        };
+      };
+    });
+    state.currentClip=c;
+    state.transitioning=false;
+  }
+
+  await Promise.all(states.map(s=> s.clips.length? loadNext(s) : (s.finished=true)));
+
+  await new Promise(resolve=>{
+    const tick=()=>{
+      if(!isActive()){ resolve(); return; }
+      let allDone=true;
+      states.forEach((s,i)=>{
+        if(s.finished) return;
+        allDone=false;
+        if(s.transitioning) return;
+        const v=s.video, c=s.currentClip;
+        if(v.currentTime>=c.end || v.ended){
+          v.pause(); s.idx++; loadNext(s);
+          return;
+        }
+        drawRectCover(v,rects[i].x,rects[i].y,rects[i].w,rects[i].h);
+      });
       tickerOffset+=4; drawOverlays();
       if(onFrame) onFrame();
-      rafId=requestAnimationFrame(step);
+      if(allDone){ resolve(); return; }
+      rafId=requestAnimationFrame(tick);
     };
-    step();
+    tick();
   });
 }
 
 async function runTimeline(recording,onFrame){
   const mode=layoutMode.value;
   const isActive=()=> recording?true:previewing;
-  if(mode==='single') await playSequenceSingle(recording,onFrame,isActive);
-  else await playGrid(mode,recording,onFrame,isActive);
+  if(mode==='single') await playSequenceSingle(onFrame,isActive);
+  else await playGridSequential(mode,onFrame,isActive);
 }
 
 function totalDuration(){
   const mode=layoutMode.value;
   if(mode==='single') return clips.reduce((s,c)=>s+(c.end-c.start),0)||1;
-  const rects=gridRects(mode); if(!rects) return 1;
-  const n=rects.length; if(clips.length<n) return 1;
-  return Math.min(...clips.slice(0,n).map(c=>c.end-c.start))||1;
+  const regions=regionsForMode(mode);
+  const sums=regions.map(r=> clips.filter(c=>c.region===r.key).reduce((s,c)=>s+(c.end-c.start),0));
+  return Math.max(...sums,1);
 }
 
 exportBtn.addEventListener('click', async ()=>{
