@@ -43,7 +43,7 @@ video,audio{display:none;}
 </style></head>
 <body><div class="wrap">
 <h1>ரீல்ஸ் எடிட்டர் 🎬</h1>
-<p class="sub">பல வீடியோக்களை இணைத்து/பிரித்து, தலைப்பு/ஸ்குரோலிங்/லோகோ/ஃபிரேம் சேர்த்து ஒரே ரீலா உருவாக்குங்கள்</p>
+<p class="sub">வீடியோ + படங்களை இணைத்து, சைஸ்/தலைப்பு/ஸ்குரோலிங்/லோகோ/ஃபிரேம் சேர்த்து ஒரே ரீலா உருவாக்குங்கள்</p>
 
 <div class="card">
 <h3>1️⃣ லேஅவுட்</h3>
@@ -56,18 +56,44 @@ video,audio{display:none;}
 </div>
 
 <div class="card">
-<h3>2️⃣ வீடியோக்கள்</h3>
-<input type="file" id="clipInput" accept="video/*" multiple>
+<h3>2️⃣ வீடியோ / படங்கள்</h3>
+<input type="file" id="clipInput" accept="video/*,image/*" multiple>
+<div class="row" style="margin-top:10px;">
+  <label style="margin:0;">அனைத்திற்கும் சைஸ்:</label>
+  <select id="globalFit">
+    <option value="full">புல் சைஸ் (முழுமையா நிரப்பு)</option>
+    <option value="reels">ரீல்ஸ் சைஸ் (முழு காட்சி)</option>
+    <option value="zoomin">சூம் இன்</option>
+    <option value="zoomout">சூம் அவுட்</option>
+  </select>
+  <button class="btn small secondary" id="applyFitAll">எல்லாவற்றுக்கும் போடு</button>
+</div>
 <div id="clipList" style="margin-top:10px;"></div>
-<div class="status" style="text-align:left;">💡 ஒவ்வொரு வீடியோவுக்கும் தனி ஆடியோ சேர்க்கலாம் — சேர்க்கா விட்டால் ஒரிஜினல் வீடியோ ஆடியோவே வரும்.</div>
+<div class="status" style="text-align:left;">💡 வீடியோ மட்டுமில்லாமல் படங்களையும் (JPG/PNG) பதிவேற்றலாம் — படத்திற்கு எத்தனை விநாடி காட்ட வேண்டும்-ன்னு நீங்களே அமைக்கலாம்.<br>💡 ஒவ்வொரு கிளிப்புக்கும் தனி ஆடியோ + தனி சைஸ் தேர்வு செய்யலாம்.</div>
 </div>
 
 <div class="card">
 <h3>3️⃣ தலைப்பு (Title)</h3>
 <div class="toggle-row"><input type="checkbox" id="titleOn"><input type="text" id="titleText" placeholder="தலைப்பை இங்கே தட்டச்சு செய்யவும்"><label style="margin:0;">பின்புலம்:</label><input type="color" id="titleBg" value="#000000"></div>
+<div class="row" style="margin-bottom:6px;">
+  <label style="margin:0;">இடம்:</label>
+  <select id="titlePos">
+    <option value="top" selected>மேலே</option>
+    <option value="middle">நடுவில்</option>
+    <option value="bottom">கீழே</option>
+  </select>
+</div>
 
-<h3>4️⃣ கீழே ஸ்குரோலிங் செய்தி</h3>
+<h3>4️⃣ ஸ்குரோலிங் செய்தி</h3>
 <div class="toggle-row"><input type="checkbox" id="tickerOn"><input type="text" id="tickerText" placeholder="ஸ்குரோலிங் செய்தி இங்கே தட்டச்சு செய்யவும்"></div>
+<div class="row" style="margin-bottom:6px;">
+  <label style="margin:0;">வேகம்:</label>
+  <select id="tickerSpeed">
+    <option value="4" selected>நார்மல்</option>
+    <option value="9">ஸ்பீடு (வேகம்)</option>
+    <option value="2">ஸ்லோ ஸ்பீடு</option>
+  </select>
+</div>
 
 <h3>5️⃣ சேனல் லோகோ</h3>
 <div class="row" style="margin-bottom:10px;">
@@ -116,8 +142,9 @@ const clipInput=document.getElementById('clipInput'), clipListEl=document.getEle
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d'), hv=document.getElementById('hv');
 const customAudioEl=document.getElementById('customAudioEl');
 const layoutMode=document.getElementById('layoutMode');
-const titleOn=document.getElementById('titleOn'), titleText=document.getElementById('titleText'), titleBg=document.getElementById('titleBg');
-const tickerOn=document.getElementById('tickerOn'), tickerText=document.getElementById('tickerText');
+const titleOn=document.getElementById('titleOn'), titleText=document.getElementById('titleText'), titleBg=document.getElementById('titleBg'), titlePos=document.getElementById('titlePos');
+const tickerOn=document.getElementById('tickerOn'), tickerText=document.getElementById('tickerText'), tickerSpeed=document.getElementById('tickerSpeed');
+const globalFit=document.getElementById('globalFit'), applyFitAll=document.getElementById('applyFitAll');
 const logoOn=document.getElementById('logoOn'), logoInput=document.getElementById('logoInput'), logoCorner=document.getElementById('logoCorner');
 const frameOn=document.getElementById('frameOn'), frameInput=document.getElementById('frameInput'), frameWidth=document.getElementById('frameWidth'), framePos=document.getElementById('framePos');
 const previewBtn=document.getElementById('previewBtn'), thumbBtn=document.getElementById('thumbBtn'), thumbPrev=document.getElementById('thumbPrev');
@@ -172,7 +199,7 @@ function getSlotAudio(i){
 }
 function setClipAudioRouting(el,audioEl,clip){
   ensureAudioGraph();
-  const vGain=nodeFor(el), cGain=audioEl?nodeFor(audioEl):null;
+  const vGain=el?nodeFor(el):null, cGain=audioEl?nodeFor(audioEl):null;
   if(clip.audioUrl && cGain){
     if(vGain) vGain.gain.value=0;
     if(audioEl.src!==clip.audioUrl) audioEl.src=clip.audioUrl;
@@ -200,6 +227,7 @@ clipInput.addEventListener('change', async (e)=>{
 });
 
 function addClip(file){
+  if(file.type.startsWith('image/')) return addImageClip(file);
   return new Promise((resolve)=>{
     const url=URL.createObjectURL(file);
     const v=document.createElement('video');
@@ -211,11 +239,28 @@ function addClip(file){
         const tctx=tc.getContext('2d');
         const s=Math.max(120/v.videoWidth,120/v.videoHeight);
         tctx.drawImage(v,(120-v.videoWidth*s)/2,(120-v.videoHeight*s)/2,v.videoWidth*s,v.videoHeight*s);
-        clips.push({id:uid(),file,url,duration:v.duration,start:0,end:v.duration,thumb:tc.toDataURL('image/jpeg',0.7),audioFile:null,audioUrl:null,region:null});
+        clips.push({id:uid(),isImage:false,file,url,duration:v.duration,start:0,end:v.duration,thumb:tc.toDataURL('image/jpeg',0.7),audioFile:null,audioUrl:null,region:null,fit:globalFit.value});
         resolve();
       };
     };
     v.onerror=()=>{ statusText.textContent='⚠️ '+file.name+' ஏற்ற முடியவில்லை.'; resolve(); };
+  });
+}
+
+function addImageClip(file){
+  return new Promise((resolve)=>{
+    const url=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=()=>{
+      const tc=document.createElement('canvas'); tc.width=120; tc.height=120;
+      const tctx=tc.getContext('2d');
+      const s=Math.max(120/img.width,120/img.height);
+      tctx.drawImage(img,(120-img.width*s)/2,(120-img.height*s)/2,img.width*s,img.height*s);
+      clips.push({id:uid(),isImage:true,file,url,imgEl:img,duration:5,start:0,end:5,thumb:tc.toDataURL('image/jpeg',0.7),audioFile:null,audioUrl:null,region:null,fit:globalFit.value});
+      resolve();
+    };
+    img.onerror=()=>{ statusText.textContent='⚠️ '+file.name+' ஏற்ற முடியவில்லை.'; resolve(); };
+    img.src=url;
   });
 }
 
@@ -226,11 +271,21 @@ function renderClipList(){
     const div=document.createElement('div'); div.className='clip';
     let regionSel='';
     if(regions) regionSel=`<select data-ri="${i}" style="margin-top:6px;">${regions.map(r=>`<option value="${r.key}" ${c.region===r.key?'selected':''}>${r.label}</option>`).join('')}</select>`;
+    const fitSel=`<select data-fi="${i}" style="margin-top:6px;">
+        <option value="full" ${c.fit==='full'?'selected':''}>புல் சைஸ்</option>
+        <option value="reels" ${c.fit==='reels'?'selected':''}>ரீல்ஸ் சைஸ்</option>
+        <option value="zoomin" ${c.fit==='zoomin'?'selected':''}>சூம் இன்</option>
+        <option value="zoomout" ${c.fit==='zoomout'?'selected':''}>சூம் அவுட்</option>
+      </select>`;
+    const timeRow = c.isImage
+      ? `<div class="trim">🖼️ படம் — நேரம்(விநாடி):<input type="number" min="0.5" max="60" step="0.5" value="${c.end.toFixed(1)}" data-i="${i}" data-k="dur"></div>`
+      : `<div class="trim">தொடக்கம்:<input type="number" min="0" max="${c.duration.toFixed(1)}" step="0.1" value="${c.start.toFixed(1)}" data-i="${i}" data-k="start">
+        முடிவு:<input type="number" min="0" max="${c.duration.toFixed(1)}" step="0.1" value="${c.end.toFixed(1)}" data-i="${i}" data-k="end">
+        /${c.duration.toFixed(1)}s</div>`;
     div.innerHTML=`<img src="${c.thumb}">
       <div class="info"><div class="nm">${i+1}. ${c.file.name}</div>
-        <div class="trim">தொடக்கம்:<input type="number" min="0" max="${c.duration.toFixed(1)}" step="0.1" value="${c.start.toFixed(1)}" data-i="${i}" data-k="start">
-        முடிவு:<input type="number" min="0" max="${c.duration.toFixed(1)}" step="0.1" value="${c.end.toFixed(1)}" data-i="${i}" data-k="end">
-        /${c.duration.toFixed(1)}s</div>
+        ${timeRow}
+        <div class="trim">📐 சைஸ்: ${fitSel}</div>
         <div class="audiorow">🎵 தனி ஆடியோ:<input type="file" accept="audio/*" data-ai="${i}">${c.audioFile?('<span>'+c.audioFile.name+'</span> <button class="btn small secondary" data-clearai="'+i+'">✖</button>'):''}</div>
         ${regionSel}
       </div>
@@ -244,8 +299,16 @@ function renderClipList(){
   clipListEl.querySelectorAll('input[type=number]').forEach(inp=>{
     inp.addEventListener('change',()=>{
       const i=+inp.dataset.i, k=inp.dataset.k, val=parseFloat(inp.value)||0;
-      clips[i][k]=Math.max(0,Math.min(val,clips[i].duration));
+      if(k==='dur'){
+        const d=Math.max(0.5,Math.min(val,60));
+        clips[i].duration=d; clips[i].start=0; clips[i].end=d;
+      } else {
+        clips[i][k]=Math.max(0,Math.min(val,clips[i].duration));
+      }
     });
+  });
+  clipListEl.querySelectorAll('select[data-fi]').forEach(sel=>{
+    sel.addEventListener('change',()=>{ clips[+sel.dataset.fi].fit=sel.value; if(!rafId) renderStatic(); });
   });
   clipListEl.querySelectorAll('input[data-ai]').forEach(inp=>{
     inp.addEventListener('change',()=>{
@@ -271,6 +334,12 @@ function renderClipList(){
   });
 }
 
+applyFitAll.addEventListener('click',()=>{
+  clips.forEach(c=>c.fit=globalFit.value);
+  renderClipList();
+  if(!rafId) renderStatic();
+});
+
 logoInput.addEventListener('change',e=>{
   const f=e.target.files[0]; if(!f) return;
   const img=new Image(); img.onload=()=>{logoImg=img;}; img.src=URL.createObjectURL(f);
@@ -280,22 +349,48 @@ frameInput.addEventListener('change',e=>{
   const img=new Image(); img.onload=()=>{frameImg=img;}; img.src=URL.createObjectURL(f);
 });
 
-function drawRectCover(v,x,y,w,h){
-  const vw=v.videoWidth||16, vh=v.videoHeight||9;
-  const s=Math.max(w/vw,h/vh); const dw=vw*s, dh=vh*s;
+function mediaSize(m){
+  const w=m.videoWidth||m.naturalWidth||m.width||16;
+  const h=m.videoHeight||m.naturalHeight||m.height||9;
+  return {w,h};
+}
+function drawRectCover(m,x,y,w,h,fit){
+  if(!m) return;
+  const {w:mw,h:mh}=mediaSize(m);
+  if(!mw||!mh) return;
+  const cover=Math.max(w/mw,h/mh), contain=Math.min(w/mw,h/mh);
+  let s=cover;
+  if(fit==='reels') s=contain;
+  else if(fit==='zoomin') s=cover*1.35;
+  else if(fit==='zoomout') s=contain*0.8;
+  const dw=mw*s, dh=mh*s;
   ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
   ctx.fillStyle='#000'; ctx.fillRect(x,y,w,h);
-  ctx.drawImage(v,x+(w-dw)/2,y+(h-dh)/2,dw,dh);
+  if(dw<w-1 || dh<h-1){
+    // காலியான இடத்தில் மங்கலான (blur) பின்புலம்
+    const bw=mw*cover, bh=mh*cover;
+    ctx.save();
+    try{ ctx.filter='blur(18px)'; }catch(e){}
+    ctx.globalAlpha=0.85;
+    try{ ctx.drawImage(m,x+(w-bw)/2,y+(h-bh)/2,bw,bh); }catch(e){}
+    ctx.restore();
+  }
+  try{ ctx.drawImage(m,x+(w-dw)/2,y+(h-dh)/2,dw,dh); }catch(e){}
   ctx.restore();
 }
-function drawVideoCover(v){ drawRectCover(v,0,0,OUT_W,OUT_H); }
+function drawVideoCover(m,fit){ drawRectCover(m,0,0,OUT_W,OUT_H,fit); }
 
+function tickerStep(){ return parseFloat(tickerSpeed.value)||4; }
 function drawOverlays(){
   if(titleOn.checked && titleText.value.trim()){
     ctx.save();
     ctx.font='bold 34px Segoe UI, sans-serif'; ctx.textAlign='center';
-    ctx.globalAlpha=0.55; ctx.fillStyle=titleBg.value; ctx.fillRect(0,30,OUT_W,58);
-    ctx.globalAlpha=1; ctx.fillStyle='#fff'; ctx.fillText(titleText.value.trim(),OUT_W/2,68);
+    const barH=58; let barY=30;
+    const p=titlePos.value;
+    if(p==='middle') barY=Math.round(OUT_H/2-barH/2);
+    else if(p==='bottom') barY=OUT_H-(tickerOn.checked?52:0)-barH-20;
+    ctx.globalAlpha=0.55; ctx.fillStyle=titleBg.value; ctx.fillRect(0,barY,OUT_W,barH);
+    ctx.globalAlpha=1; ctx.fillStyle='#fff'; ctx.fillText(titleText.value.trim(),OUT_W/2,barY+38);
     ctx.restore();
   }
   if(logoOn.checked && logoImg){
@@ -329,22 +424,25 @@ function drawOverlays(){
 function renderStatic(){
   if(clips.length){
     const c=clips[0];
+    if(c.isImage){
+      drawVideoCover(c.imgEl,c.fit); drawOverlays(); return;
+    }
     if(hv.src!==c.url){ hv.src=c.url; }
     hv.currentTime=c.start;
-    hv.onseeked=()=>{ drawVideoCover(hv); drawOverlays(); };
+    hv.onseeked=()=>{ drawVideoCover(hv,c.fit); drawOverlays(); };
   } else {
     ctx.fillStyle='#000'; ctx.fillRect(0,0,OUT_W,OUT_H);
     ctx.fillStyle='#666'; ctx.font='20px sans-serif'; ctx.textAlign='center';
-    ctx.fillText('வீடியோவைப் பதிவேற்றவும்',OUT_W/2,OUT_H/2);
+    ctx.fillText('வீடியோ / படம் பதிவேற்றவும்',OUT_W/2,OUT_H/2);
   }
 }
-[titleOn,titleText,titleBg,tickerOn,tickerText,logoOn,logoCorner,frameOn,frameWidth,framePos].forEach(el=>el.addEventListener('input',()=>{ if(!rafId) renderStatic(); }));
+[titleOn,titleText,titleBg,titlePos,tickerOn,tickerText,tickerSpeed,logoOn,logoCorner,frameOn,frameWidth,framePos,globalFit].forEach(el=>el.addEventListener('input',()=>{ if(!rafId) renderStatic(); }));
 renderStatic();
 
 let previewing=false;
 previewBtn.addEventListener('click', async ()=>{
   if(previewing){ previewing=false; if(rafId) cancelAnimationFrame(rafId); previewBtn.textContent='▶️ முன்னோட்டம் பார்'; renderStatic(); return; }
-  if(!clips.length){ statusText.textContent='முதலில் ஒரு வீடியோவைப் பதிவேற்றவும்.'; return; }
+  if(!clips.length){ statusText.textContent='முதலில் ஒரு வீடியோ / படத்தைப் பதிவேற்றவும்.'; return; }
   ensureAudioGraph();
   previewing=true; previewBtn.textContent='⏸️ நிறுத்து'; tickerOffset=0;
   await runTimeline(false);
@@ -356,9 +454,25 @@ thumbBtn.addEventListener('click', ()=>{
   thumbPrev.innerHTML=`<img src="${dataUrl}"><br><a class="btn small secondary" style="display:inline-block;margin-top:8px;text-decoration:none;" href="${dataUrl}" download="thumbnail.png">⬇️ தம்ப்நெயில் பதிவிறக்கு</a>`;
 });
 
+function playImageClip(c,onFrame,isActive){
+  return new Promise(res=>{
+    setClipAudioRouting(null,customAudioEl,c);
+    const t0=performance.now(), dur=(c.end-c.start)*1000;
+    const step=()=>{
+      if(!isActive()){ customAudioEl.pause(); res(); return; }
+      if(performance.now()-t0>=dur){ customAudioEl.pause(); res(); return; }
+      drawVideoCover(c.imgEl,c.fit); tickerOffset+=tickerStep(); drawOverlays();
+      if(onFrame) onFrame();
+      rafId=requestAnimationFrame(step);
+    };
+    step();
+  });
+}
+
 async function playSequenceSingle(onFrame,isActive){
   for(let ci=0; ci<clips.length && isActive(); ci++){
     const c=clips[ci];
+    if(c.isImage){ await playImageClip(c,onFrame,isActive); continue; }
     await new Promise(res=>{
       hv.src=c.url; hv.loop=false;
       hv.onloadedmetadata=()=>{
@@ -369,7 +483,7 @@ async function playSequenceSingle(onFrame,isActive){
           const step=()=>{
             if(!isActive()){ res(); return; }
             if(hv.currentTime>=c.end || hv.ended){ hv.pause(); res(); return; }
-            drawVideoCover(hv); tickerOffset+=4; drawOverlays();
+            drawVideoCover(hv,c.fit); tickerOffset+=tickerStep(); drawOverlays();
             if(onFrame) onFrame();
             rafId=requestAnimationFrame(step);
           };
@@ -382,13 +496,19 @@ async function playSequenceSingle(onFrame,isActive){
 
 async function playGridSequential(mode,onFrame,isActive){
   const regions=regionsForMode(mode), rects=gridRects(mode);
-  const states=regions.map((r,i)=>({clips:clips.filter(c=>c.region===r.key), idx:0, video:getSlotVideo(i), audio:getSlotAudio(i), finished:false, transitioning:false, currentClip:null}));
-  if(states.every(s=>s.clips.length===0)){ statusText.textContent='⚠️ ஒவ்வொரு பகுதிக்கும் குறைந்தது ஒரு வீடியோ ஒதுக்கவும்.'; return; }
+  const states=regions.map((r,i)=>({clips:clips.filter(c=>c.region===r.key), idx:0, video:getSlotVideo(i), audio:getSlotAudio(i), finished:false, transitioning:false, currentClip:null, imgStart:0}));
+  if(states.every(s=>s.clips.length===0)){ statusText.textContent='⚠️ ஒவ்வொரு பகுதிக்கும் குறைந்தது ஒரு கிளிப் ஒதுக்கவும்.'; return; }
 
   async function loadNext(state){
     if(state.idx>=state.clips.length){ state.finished=true; state.transitioning=false; return; }
     state.transitioning=true;
     const c=state.clips[state.idx];
+    if(c.isImage){
+      try{ state.video.pause(); }catch(e){}
+      setClipAudioRouting(null,state.audio,c);
+      state.imgStart=performance.now();
+      state.currentClip=c; state.transitioning=false; return;
+    }
     await new Promise(res=>{
       state.video.src=c.url;
       state.video.onloadedmetadata=()=>{
@@ -415,13 +535,21 @@ async function playGridSequential(mode,onFrame,isActive){
         allDone=false;
         if(s.transitioning) return;
         const v=s.video, c=s.currentClip;
+        if(c && c.isImage){
+          if(performance.now()-s.imgStart >= (c.end-c.start)*1000){
+            try{ s.audio.pause(); }catch(e){}
+            s.idx++; loadNext(s); return;
+          }
+          drawRectCover(c.imgEl,rects[i].x,rects[i].y,rects[i].w,rects[i].h,c.fit);
+          return;
+        }
         if(v.currentTime>=c.end || v.ended){
           v.pause(); s.idx++; loadNext(s);
           return;
         }
-        drawRectCover(v,rects[i].x,rects[i].y,rects[i].w,rects[i].h);
+        drawRectCover(v,rects[i].x,rects[i].y,rects[i].w,rects[i].h,c.fit);
       });
-      tickerOffset+=4; drawOverlays();
+      tickerOffset+=tickerStep(); drawOverlays();
       if(onFrame) onFrame();
       if(allDone){ resolve(); return; }
       rafId=requestAnimationFrame(tick);
@@ -446,7 +574,7 @@ function totalDuration(){
 }
 
 exportBtn.addEventListener('click', async ()=>{
-  if(!clips.length){ statusText.textContent='முதலில் ஒரு வீடியோவைப் பதிவேற்றவும்.'; return; }
+  if(!clips.length){ statusText.textContent='முதலில் ஒரு வீடியோ / படத்தைப் பதிவேற்றவும்.'; return; }
   ensureAudioGraph();
   exportBtn.disabled=true; dlBtn.style.display='none'; lastBlob=null;
   pWrap.style.display='block'; pBar.style.width='0%';
