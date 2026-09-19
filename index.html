@@ -30,7 +30,7 @@ label{font-size:.8rem;color:var(--muted);display:block;margin-bottom:4px;}
 .audiorow input[type=file]{font-size:.7rem;}
 .clipbtns{display:flex;flex-direction:column;gap:4px;}
 .stage{display:flex;justify-content:center;background:#000;border-radius:12px;overflow:hidden;margin-bottom:10px;}
-.stage canvas{max-width:100%;max-height:240px;display:block;}
+.stage canvas{max-width:100%;max-height:60vh;display:block;}
 .toggle-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
 .toggle-row input[type=text]{flex:1;min-width:150px;}
 select{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px;font-size:.8rem;}
@@ -65,6 +65,7 @@ video,audio{display:none;}
 <h3>1️⃣ லேஅவுட்</h3>
 <select id="layoutMode">
   <option value="single">ஒற்றை வீடியோ (வரிசையா இணைப்பு)</option>
+  <option value="lr">இடது + வலது (2 பகுதி பக்கவாட்டாக)</option>
   <option value="tb">மேல் + கீழ் (2 பகுதி)</option>
   <option value="t2b1">மேலே இரண்டு + கீழே ஒன்று (3 பகுதி)</option>
 </select>
@@ -332,11 +333,13 @@ function bindScrubHandlers(listEl, arr, afterSet, onOpen){
 }
 
 function regionsForMode(mode){
+  if(mode==='lr') return [{key:'left',label:'இடது'},{key:'right',label:'வலது'}];
   if(mode==='tb') return [{key:'top',label:'மேல்'},{key:'bottom',label:'கீழ்'}];
   if(mode==='t2b1') return [{key:'topleft',label:'மேல்-இடது'},{key:'topright',label:'மேல்-வலது'},{key:'bottom',label:'கீழ்'}];
   return null;
 }
 function gridRects(mode){
+  if(mode==='lr') return [{x:0,y:0,w:OUT_W/2,h:OUT_H},{x:OUT_W/2,y:0,w:OUT_W/2,h:OUT_H}];
   if(mode==='tb') return [{x:0,y:0,w:OUT_W,h:OUT_H/2},{x:0,y:OUT_H/2,w:OUT_W,h:OUT_H/2}];
   if(mode==='t2b1') return [{x:0,y:0,w:OUT_W/2,h:OUT_H/2},{x:OUT_W/2,y:0,w:OUT_W/2,h:OUT_H/2},{x:0,y:OUT_H/2,w:OUT_W,h:OUT_H/2}];
   return null;
@@ -346,6 +349,13 @@ function ensureAudioGraph(){
   if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
   if(!audioDest) audioDest=audioCtx.createMediaStreamDestination();
   if(audioCtx.state==='suspended') audioCtx.resume();
+}
+async function safePlay(el){
+  try{ el.muted=false; await el.play(); return true; }
+  catch(err){
+    try{ el.muted=true; await el.play(); return 'muted'; }
+    catch(err2){ console.warn('play blocked',err2); return false; }
+  }
 }
 function nodeFor(el){
   try{
@@ -692,7 +702,7 @@ async function playSequenceSingle(onFrame,isActive){
     await prepareVideo(hv,c);
     if(!isActive()) break;
     setClipAudioRouting(hv,customAudioEl,c);
-    await hv.play().catch(()=>{});
+    await safePlay(hv);
     await new Promise(res=>{
       let lastT=-1, stall=0;
       const step=()=>{
@@ -727,7 +737,7 @@ async function playGridSequential(mode,onFrame,isActive){
     }
     await prepareVideo(state.video,c);
     setClipAudioRouting(state.video,state.audio,c);
-    await state.video.play().catch(()=>{});
+    await safePlay(state.video);
     state.currentClip=c;
     state.transitioning=false;
   }
@@ -978,7 +988,7 @@ async function playSequenceSingle2(onFrame,isActive){
     await prepareVideo(cutHv,c);
     if(!isActive()) break;
     setClipAudioRouting(cutHv,cutCustomAudioEl,c);
-    await cutHv.play().catch(()=>{});
+    await safePlay(cutHv);
     await new Promise(res=>{
       let lastT=-1, stall=0;
       const step=()=>{
