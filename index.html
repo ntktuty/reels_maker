@@ -30,7 +30,7 @@ label{font-size:.8rem;color:var(--muted);display:block;margin-bottom:4px;}
 .audiorow input[type=file]{font-size:.7rem;}
 .clipbtns{display:flex;flex-direction:column;gap:4px;}
 .stage{display:flex;justify-content:center;background:#000;border-radius:12px;overflow:hidden;margin-bottom:10px;}
-#cv{max-width:100%;max-height:60vh;display:block;}
+.stage canvas{max-width:100%;max-height:240px;display:block;}
 .toggle-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
 .toggle-row input[type=text]{flex:1;min-width:150px;}
 select{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px;font-size:.8rem;}
@@ -158,6 +158,7 @@ video,audio{display:none;}
 
 <div class="card">
 <h3>👁️ முன்னோட்டம்</h3>
+<div class="status" id="previewLabel" style="text-align:center;margin-bottom:6px;"></div>
 <div class="stage"><canvas id="cv"></canvas></div>
 <div class="row">
   <button class="btn secondary" id="previewBtn">▶️ முன்னோட்டம் பார்</button>
@@ -198,6 +199,7 @@ video,audio{display:none;}
 
 <div class="card">
 <h3>👁️ முன்னோட்டம்</h3>
+<div class="status" id="cutPreviewLabel" style="text-align:center;margin-bottom:6px;"></div>
 <div class="stage"><canvas id="cutCv"></canvas></div>
 <div class="row">
   <button class="btn secondary" id="cutPreviewBtn">▶️ முன்னோட்டம் பார்</button>
@@ -244,6 +246,7 @@ video,audio{display:none;}
 <script>
 (function(){
 const clipInput=document.getElementById('clipInput'), clipListEl=document.getElementById('clipList');
+const previewLabel=document.getElementById('previewLabel');
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d'), hv=document.getElementById('hv');
 const customAudioEl=document.getElementById('customAudioEl');
 const layoutMode=document.getElementById('layoutMode');
@@ -266,12 +269,23 @@ const dlBtn=document.getElementById('dlBtn');
 const OUT_W=540, OUT_H=960;
 cv.width=OUT_W; cv.height=OUT_H;
 let clips=[];
+let previewClipIndex=0;
 let logoImg=null;
 let rafId=null, lastBlob=null, tickerOffset=0;
 let audioCtx=null, audioDest=null;
 let slotVideos=[], slotAudios=[];
 
 function uid(){return Math.random().toString(36).slice(2,9);}
+
+function seekAndDraw(el,time,onReady){
+  const t=Math.max(0,time||0);
+  if(el.readyState>=2 && Math.abs((el.currentTime||0)-t)<0.05){ onReady(); return; }
+  let done=false;
+  const finish=()=>{ if(done) return; done=true; clearTimeout(timer); el.removeEventListener('seeked',finish); onReady(); };
+  const timer=setTimeout(finish,700);
+  el.addEventListener('seeked',finish);
+  try{ el.currentTime=t; }catch(e){ finish(); }
+}
 
 function scrubRowHtml(prefix,i){
   return `<div class="trim" style="margin-top:6px;">
@@ -285,7 +299,7 @@ function scrubRowHtml(prefix,i){
       </div>
     </div>`;
 }
-function bindScrubHandlers(listEl, arr, afterSet){
+function bindScrubHandlers(listEl, arr, afterSet, onOpen){
   listEl.querySelectorAll('button[data-scrub]').forEach(b=>{
     b.addEventListener('click',()=>{
       const prefix=b.dataset.prefix, i=+b.dataset.idx;
@@ -300,6 +314,7 @@ function bindScrubHandlers(listEl, arr, afterSet){
         const v=box.querySelector('video');
         if(!v.src) v.src=arr[i].url;
         box.scrollIntoView({behavior:'smooth',block:'nearest'});
+        if(onOpen) onOpen(i);
       }
     });
   });
@@ -311,7 +326,7 @@ function bindScrubHandlers(listEl, arr, afterSet){
       arr[i][k]=t;
       const inp=listEl.querySelector(`input[data-i="${i}"][data-k="${k}"]`);
       if(inp) inp.value=t.toFixed(1);
-      if(afterSet) afterSet();
+      if(afterSet) afterSet(i);
     });
   });
 }
@@ -477,7 +492,7 @@ function renderClipList(){
   clipListEl.querySelectorAll('select[data-ri]').forEach(sel=>{
     sel.addEventListener('change',()=>{ clips[+sel.dataset.ri].region=sel.value; });
   });
-  bindScrubHandlers(clipListEl, clips, ()=>{ if(!rafId) renderStatic(); });
+  bindScrubHandlers(clipListEl, clips, (i)=>{ previewClipIndex=i; if(!rafId) renderStatic(); }, (i)=>{ previewClipIndex=i; if(!rafId) renderStatic(); });
   clipListEl.querySelectorAll('button[data-act]').forEach(b=>{
     b.addEventListener('click',()=>{
       const i=+b.dataset.i, act=b.dataset.act;
@@ -597,14 +612,21 @@ function drawOverlays(){
 
 function renderStatic(){
   if(clips.length){
-    const c=clips[0];
+    if(previewClipIndex>=clips.length) previewClipIndex=0;
+    const c=clips[previewClipIndex];
+    previewLabel.textContent='கிளிப் '+(previewClipIndex+1)+' காட்டப்படுகிறது ('+c.start.toFixed(1)+'s முதல்)';
     if(c.isImage){
       drawVideoCover(c.imgEl,c.fit); drawOverlays(); return;
     }
-    if(hv.src!==c.url){ hv.src=c.url; }
-    hv.currentTime=c.start;
-    hv.onseeked=()=>{ drawVideoCover(hv,c.fit); drawOverlays(); };
+    const draw=()=>{ ctx.fillStyle='#000'; ctx.fillRect(0,0,OUT_W,OUT_H); drawVideoCover(hv,c.fit); drawOverlays(); };
+    if(hv.src!==c.url){
+      hv.src=c.url;
+      hv.onloadedmetadata=()=>{ seekAndDraw(hv,c.start,draw); };
+    } else {
+      seekAndDraw(hv,c.start,draw);
+    }
   } else {
+    previewLabel.textContent='';
     ctx.fillStyle='#000'; ctx.fillRect(0,0,OUT_W,OUT_H);
     ctx.fillStyle='#666'; ctx.font='20px sans-serif'; ctx.textAlign='center';
     ctx.fillText('வீடியோ / படம் பதிவேற்றவும்',OUT_W/2,OUT_H/2);
@@ -821,13 +843,14 @@ tabBtnCutter.addEventListener('click',()=>showTab('cutter'));
 
 /* ================= VIDEO CUTTER & MERGER (Tab 2) ================= */
 const cutClipInput=document.getElementById('cutClipInput'), cutClipListEl=document.getElementById('cutClipList');
+const cutPreviewLabel=document.getElementById('cutPreviewLabel');
 const cutOutRatio=document.getElementById('cutOutRatio');
 const cutCv=document.getElementById('cutCv'), cutCtx=cutCv.getContext('2d');
 const cutPreviewBtn=document.getElementById('cutPreviewBtn');
 const cutExportBtn=document.getElementById('cutExportBtn'), cutDlBtn=document.getElementById('cutDlBtn');
 const cutPWrap=document.getElementById('cutPWrap'), cutPBar=document.getElementById('cutPBar'), cutStatusText=document.getElementById('cutStatusText');
 const cutHv=document.getElementById('cutHv'), cutCustomAudioEl=document.getElementById('cutCustomAudioEl');
-let clips2=[], previewing2=false, rafId2=null, lastBlob2=null;
+let clips2=[], previewClipIndex2=0, previewing2=false, rafId2=null, lastBlob2=null;
 
 function cutCanvasSize(){
   if(cutOutRatio.value==='916') return {w:540,h:960};
@@ -924,18 +947,23 @@ function renderCutClipList(){
       renderCutStatic();
     });
   });
-  bindScrubHandlers(cutClipListEl, clips2, ()=>{ if(!rafId2) renderCutStatic(); });
+  bindScrubHandlers(cutClipListEl, clips2, (i)=>{ previewClipIndex2=i; if(!rafId2) renderCutStatic(); }, (i)=>{ previewClipIndex2=i; if(!rafId2) renderCutStatic(); });
 }
 
 function renderCutStatic(){
   if(clips2.length){
-    const c=clips2[0];
-    if(cutHv.src!==c.url) cutHv.src=c.url;
-    cutHv.onloadedmetadata=()=>{
-      cutHv.currentTime=c.start;
-      cutHv.onseeked=()=>{ cutCtx.fillStyle='#000'; cutCtx.fillRect(0,0,cutCv.width,cutCv.height); drawRectCover(cutHv,0,0,cutCv.width,cutCv.height,'reels'); };
-    };
+    if(previewClipIndex2>=clips2.length) previewClipIndex2=0;
+    const c=clips2[previewClipIndex2];
+    cutPreviewLabel.textContent='கிளிப் '+(previewClipIndex2+1)+' காட்டப்படுகிறது ('+c.start.toFixed(1)+'s முதல்)';
+    const draw=()=>{ cutCtx.fillStyle='#000'; cutCtx.fillRect(0,0,cutCv.width,cutCv.height); drawRectCover(cutHv,0,0,cutCv.width,cutCv.height,'reels'); };
+    if(cutHv.src!==c.url){
+      cutHv.src=c.url;
+      cutHv.onloadedmetadata=()=>{ seekAndDraw(cutHv,c.start,draw); };
+    } else {
+      seekAndDraw(cutHv,c.start,draw);
+    }
   } else {
+    cutPreviewLabel.textContent='';
     cutCtx.fillStyle='#000'; cutCtx.fillRect(0,0,cutCv.width,cutCv.height);
     cutCtx.fillStyle='#888'; cutCtx.font='20px Segoe UI, sans-serif'; cutCtx.textAlign='center';
     cutCtx.fillText('வீடியோ கிளிப் பதிவேற்றவும்',cutCv.width/2,cutCv.height/2);
