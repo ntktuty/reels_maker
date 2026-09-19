@@ -45,6 +45,8 @@ select{background:var(--bg);border:1px solid var(--border);color:var(--text);bor
 .tabbtn.active{background:var(--accent,#3a7bfd);color:#fff;border-color:transparent;}
 .tabpage{display:none;}
 .tabpage.active{display:block;}
+.scrub-box{background:rgba(0,0,0,.15);border-radius:8px;padding:8px;}
+.scrub-box video{width:100%;max-height:220px;background:#000;border-radius:6px;display:block;}
 video,audio{display:none;}
 .thumb-preview{margin-top:8px;text-align:center;}
 .thumb-preview img{max-width:200px;border-radius:8px;border:1px solid var(--border);}
@@ -214,6 +216,11 @@ video,audio{display:none;}
 <h3>3️⃣ ஆடியோ கட்டர்</h3>
 <input type="file" id="audioCutInput" accept="audio/*">
 <div id="audioCutInfo" style="display:none;">
+  <audio id="acPlayerFull" controls preload="metadata" style="display:block;width:100%;margin-top:10px;"></audio>
+  <div class="row" style="margin-top:8px;">
+    <button class="btn small secondary" type="button" id="acSetStart">⏱️ தொடக்கம் இங்கே அமை</button>
+    <button class="btn small secondary" type="button" id="acSetEnd">⏱️ முடிவு இங்கே அமை</button>
+  </div>
   <div class="row" style="margin-top:10px;">
     <label style="margin:0;">தொடக்கம் (வி):</label><input type="number" id="acStart" min="0" step="0.1" value="0" style="width:90px;">
     <label style="margin:0;">முடிவு (வி):</label><input type="number" id="acEnd" min="0" step="0.1" value="0" style="width:90px;">
@@ -265,6 +272,49 @@ let audioCtx=null, audioDest=null;
 let slotVideos=[], slotAudios=[];
 
 function uid(){return Math.random().toString(36).slice(2,9);}
+
+function scrubRowHtml(prefix,i){
+  return `<div class="trim" style="margin-top:6px;">
+      <button class="btn small secondary" type="button" data-scrub data-prefix="${prefix}" data-idx="${i}">🎯 பார்த்து வெட்டு</button>
+    </div>
+    <div class="scrub-box" id="scrub-${prefix}-${i}" style="display:none;margin-top:6px;">
+      <video controls playsinline></video>
+      <div class="row" style="margin-top:6px;">
+        <button class="btn small secondary" type="button" data-setpoint="start" data-prefix="${prefix}" data-idx="${i}">⏱️ தொடக்கம் இங்கே அமை</button>
+        <button class="btn small secondary" type="button" data-setpoint="end" data-prefix="${prefix}" data-idx="${i}">⏱️ முடிவு இங்கே அமை</button>
+      </div>
+    </div>`;
+}
+function bindScrubHandlers(listEl, arr, afterSet){
+  listEl.querySelectorAll('button[data-scrub]').forEach(b=>{
+    b.addEventListener('click',()=>{
+      const prefix=b.dataset.prefix, i=+b.dataset.idx;
+      const box=document.getElementById('scrub-'+prefix+'-'+i);
+      const wasOpen = box.style.display!=='none';
+      listEl.querySelectorAll('.scrub-box').forEach(bx=>{
+        bx.style.display='none';
+        const v=bx.querySelector('video'); if(v) v.pause();
+      });
+      if(!wasOpen){
+        box.style.display='block';
+        const v=box.querySelector('video');
+        if(!v.src) v.src=arr[i].url;
+        box.scrollIntoView({behavior:'smooth',block:'nearest'});
+      }
+    });
+  });
+  listEl.querySelectorAll('button[data-setpoint]').forEach(b=>{
+    b.addEventListener('click',()=>{
+      const prefix=b.dataset.prefix, i=+b.dataset.idx, k=b.dataset.setpoint;
+      const box=document.getElementById('scrub-'+prefix+'-'+i), v=box.querySelector('video');
+      const t=Math.max(0,Math.min(v.currentTime||0, arr[i].duration));
+      arr[i][k]=t;
+      const inp=listEl.querySelector(`input[data-i="${i}"][data-k="${k}"]`);
+      if(inp) inp.value=t.toFixed(1);
+      if(afterSet) afterSet();
+    });
+  });
+}
 
 function regionsForMode(mode){
   if(mode==='tb') return [{key:'top',label:'மேல்'},{key:'bottom',label:'கீழ்'}];
@@ -385,7 +435,7 @@ function renderClipList(){
       ? `<div class="trim">🖼️ படம் — நேரம்(விநாடி):<input type="number" min="0.5" max="60" step="0.5" value="${c.end.toFixed(1)}" data-i="${i}" data-k="dur"></div>`
       : `<div class="trim">தொடக்கம்:<input type="number" min="0" max="${c.duration.toFixed(1)}" step="0.1" value="${c.start.toFixed(1)}" data-i="${i}" data-k="start">
         முடிவு:<input type="number" min="0" max="${c.duration.toFixed(1)}" step="0.1" value="${c.end.toFixed(1)}" data-i="${i}" data-k="end">
-        /${c.duration.toFixed(1)}s</div>`;
+        /${c.duration.toFixed(1)}s</div>${scrubRowHtml('m',i)}`;
     div.innerHTML=`<img src="${c.thumb}">
       <div class="info"><div class="nm">${i+1}. ${c.file.name}</div>
         ${timeRow}
@@ -427,6 +477,7 @@ function renderClipList(){
   clipListEl.querySelectorAll('select[data-ri]').forEach(sel=>{
     sel.addEventListener('change',()=>{ clips[+sel.dataset.ri].region=sel.value; });
   });
+  bindScrubHandlers(clipListEl, clips, ()=>{ if(!rafId) renderStatic(); });
   clipListEl.querySelectorAll('button[data-act]').forEach(b=>{
     b.addEventListener('click',()=>{
       const i=+b.dataset.i, act=b.dataset.act;
@@ -835,7 +886,7 @@ function renderCutClipList(){
       <div class="info"><div class="nm">${i+1}. ${c.file.name}</div>
         <div class="trim">தொடக்கம்:<input type="number" min="0" max="${c.duration.toFixed(1)}" step="0.1" value="${c.start.toFixed(1)}" data-i="${i}" data-k="start">
         முடிவு:<input type="number" min="0" max="${c.duration.toFixed(1)}" step="0.1" value="${c.end.toFixed(1)}" data-i="${i}" data-k="end">
-        /${c.duration.toFixed(1)}s</div>
+        /${c.duration.toFixed(1)}s</div>${scrubRowHtml('c',i)}
         <div class="audiorow">🎵 தனி ஆடியோ:<input type="file" accept="audio/*" data-ai2="${i}">${c.audioFile?('<span>'+c.audioFile.name+'</span> <button class="btn small secondary" data-clearai2="'+i+'">✖</button>'):''}</div>
         <div class="row" style="margin-top:6px;">
         <button class="btn small secondary" data-act2="up" data-i="${i}">⬆️</button>
@@ -873,6 +924,7 @@ function renderCutClipList(){
       renderCutStatic();
     });
   });
+  bindScrubHandlers(cutClipListEl, clips2, ()=>{ if(!rafId2) renderCutStatic(); });
 }
 
 function renderCutStatic(){
@@ -975,6 +1027,8 @@ cutDlBtn.addEventListener('click', ()=>{
 
 /* ================= AUDIO CUTTER (Tab 2) ================= */
 const audioCutInput=document.getElementById('audioCutInput'), audioCutInfo=document.getElementById('audioCutInfo');
+const acPlayerFull=document.getElementById('acPlayerFull');
+const acSetStart=document.getElementById('acSetStart'), acSetEnd=document.getElementById('acSetEnd');
 const acStart=document.getElementById('acStart'), acEnd=document.getElementById('acEnd'), acDurLabel=document.getElementById('acDurLabel');
 const acPreviewBtn=document.getElementById('acPreviewBtn'), acStopBtn=document.getElementById('acStopBtn');
 const acExportBtn=document.getElementById('acExportBtn'), acStatusText=document.getElementById('acStatusText');
@@ -987,7 +1041,8 @@ audioCutInput.addEventListener('change', async (e)=>{
   try{
     if(!acCtx) acCtx=new (window.AudioContext||window.webkitAudioContext)();
     const arr=await f.arrayBuffer();
-    acBuffer=await acCtx.decodeAudioData(arr);
+    acBuffer=await acCtx.decodeAudioData(arr.slice(0));
+    acPlayerFull.src=URL.createObjectURL(f);
     acStart.max=acBuffer.duration.toFixed(2); acEnd.max=acBuffer.duration.toFixed(2);
     acStart.value=0; acEnd.value=acBuffer.duration.toFixed(2);
     acDurLabel.textContent='மொத்த நீளம்: '+acBuffer.duration.toFixed(1)+'s';
@@ -996,6 +1051,17 @@ audioCutInput.addEventListener('change', async (e)=>{
   }catch(err){
     console.error(err); acStatusText.textContent='⚠️ ஆடியோவைப் படிக்க முடியவில்லை.';
   }
+});
+
+acSetStart.addEventListener('click',()=>{
+  if(!acBuffer) return;
+  acStart.value=Math.max(0,Math.min(acPlayerFull.currentTime||0,acBuffer.duration)).toFixed(2);
+  acClampRange();
+});
+acSetEnd.addEventListener('click',()=>{
+  if(!acBuffer) return;
+  acEnd.value=Math.max(0,Math.min(acPlayerFull.currentTime||0,acBuffer.duration)).toFixed(2);
+  acClampRange();
 });
 
 function acClampRange(){
