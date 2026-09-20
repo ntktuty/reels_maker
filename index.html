@@ -287,9 +287,11 @@ function scrubRowHtml(prefix,i){
     </div>
     <div class="scrub-box" id="scrub-${prefix}-${i}" style="display:none;margin-top:6px;">
       <video controls playsinline></video>
-      <div class="rangebar" style="position:relative;height:8px;background:var(--border);border-radius:4px;margin-top:8px;overflow:hidden;">
+      <div class="status" id="scrubtime-${prefix}-${i}" style="text-align:center;margin:6px 0 0;font-size:.78rem;"></div>
+      <div class="rangebar" style="position:relative;height:8px;background:var(--border);border-radius:4px;margin-top:6px;overflow:hidden;">
         <div class="rangefill" style="position:absolute;top:0;bottom:0;background:var(--accent);"></div>
       </div>
+      <div class="status" id="rangelabel-${prefix}-${i}" style="text-align:center;margin-top:4px;font-size:.75rem;"></div>
       <div class="row" style="margin-top:6px;">
         <button class="btn small secondary" type="button" data-setpoint="start" data-prefix="${prefix}" data-idx="${i}">⏱️ தொடக்கம் இங்கே அமை</button>
         <button class="btn small secondary" type="button" data-setpoint="end" data-prefix="${prefix}" data-idx="${i}">⏱️ முடிவு இங்கே அமை</button>
@@ -307,6 +309,8 @@ function updateRangeBar(prefix,i,arr){
   const rightPct=Math.max(0,Math.min(100,(c.end/dur)*100));
   fill.style.left=leftPct+'%';
   fill.style.width=Math.max(0,rightPct-leftPct)+'%';
+  const lbl=document.getElementById('rangelabel-'+prefix+'-'+i);
+  if(lbl) lbl.textContent='தொடக்கம்: '+c.start.toFixed(1)+'s   |   முடிவு: '+c.end.toFixed(1)+'s   |   நீளம்: '+(c.end-c.start).toFixed(1)+'s';
 }
 function bindScrubHandlers(listEl, arr, afterSet, onOpen){
   listEl.querySelectorAll('button[data-scrub]').forEach(b=>{
@@ -323,6 +327,15 @@ function bindScrubHandlers(listEl, arr, afterSet, onOpen){
         const v=box.querySelector('video');
         if(!v.src) v.src=arr[i].url;
         updateRangeBar(prefix,i,arr);
+        const timeEl=document.getElementById('scrubtime-'+prefix+'-'+i);
+        if(timeEl && !v._timeBound){
+          v._timeBound=true;
+          const upd=()=>{ timeEl.textContent='தற்போதைய நேரம்: '+v.currentTime.toFixed(1)+'s / '+(v.duration||arr[i].duration||0).toFixed(1)+'s'; };
+          v.addEventListener('timeupdate',upd);
+          v.addEventListener('loadedmetadata',upd);
+          v.addEventListener('seeked',upd);
+          upd();
+        }
         box.scrollIntoView({behavior:'smooth',block:'nearest'});
         if(onOpen) onOpen(i);
       }
