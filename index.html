@@ -198,14 +198,7 @@ video,audio{display:none;}
 <div class="status" style="text-align:left;">💡 ஒவ்வொரு கிளிப்பையும் தொடக்கம்/முடிவு நேரம் கொடுத்து வெட்டலாம். வேணும்னா தனி ஆடியோவும் மாற்றலாம். 2+ கிளிப் இருந்தால் வரிசைப்படி ஒன்றன்பின் ஒன்றாக இணைந்து (மெர்ஜ்) ஒரே வீடியோவா வரும் — ⬆️⬇️ மூலம் வரிசையை மாற்றலாம்.</div>
 </div>
 
-<div class="card">
-<h3>👁️ முன்னோட்டம்</h3>
-<div class="status" id="cutPreviewLabel" style="text-align:center;margin-bottom:6px;"></div>
-<div class="stage"><canvas id="cutCv"></canvas></div>
-<div class="row">
-  <button class="btn secondary" id="cutPreviewBtn">▶️ முன்னோட்டம் பார்</button>
-</div>
-</div>
+<canvas id="cutCv" style="display:none;"></canvas>
 
 <div class="card">
 <h3>2️⃣ கட் + மெர்ஜ் செய்து இறுதி வீடியோ தயார் செய்</h3>
@@ -294,11 +287,26 @@ function scrubRowHtml(prefix,i){
     </div>
     <div class="scrub-box" id="scrub-${prefix}-${i}" style="display:none;margin-top:6px;">
       <video controls playsinline></video>
+      <div class="rangebar" style="position:relative;height:8px;background:var(--border);border-radius:4px;margin-top:8px;overflow:hidden;">
+        <div class="rangefill" style="position:absolute;top:0;bottom:0;background:var(--accent);"></div>
+      </div>
       <div class="row" style="margin-top:6px;">
         <button class="btn small secondary" type="button" data-setpoint="start" data-prefix="${prefix}" data-idx="${i}">⏱️ தொடக்கம் இங்கே அமை</button>
         <button class="btn small secondary" type="button" data-setpoint="end" data-prefix="${prefix}" data-idx="${i}">⏱️ முடிவு இங்கே அமை</button>
       </div>
+      <button class="btn small" type="button" data-playsel data-prefix="${prefix}" data-idx="${i}" style="margin-top:6px;width:100%;">▶️ தேர்ந்தெடுத்ததை பிளே</button>
     </div>`;
+}
+function updateRangeBar(prefix,i,arr){
+  const box=document.getElementById('scrub-'+prefix+'-'+i);
+  if(!box) return;
+  const fill=box.querySelector('.rangefill');
+  const c=arr[i]; if(!c) return;
+  const dur=c.duration||1;
+  const leftPct=Math.max(0,Math.min(100,(c.start/dur)*100));
+  const rightPct=Math.max(0,Math.min(100,(c.end/dur)*100));
+  fill.style.left=leftPct+'%';
+  fill.style.width=Math.max(0,rightPct-leftPct)+'%';
 }
 function bindScrubHandlers(listEl, arr, afterSet, onOpen){
   listEl.querySelectorAll('button[data-scrub]').forEach(b=>{
@@ -314,6 +322,7 @@ function bindScrubHandlers(listEl, arr, afterSet, onOpen){
         box.style.display='block';
         const v=box.querySelector('video');
         if(!v.src) v.src=arr[i].url;
+        updateRangeBar(prefix,i,arr);
         box.scrollIntoView({behavior:'smooth',block:'nearest'});
         if(onOpen) onOpen(i);
       }
@@ -327,7 +336,21 @@ function bindScrubHandlers(listEl, arr, afterSet, onOpen){
       arr[i][k]=t;
       const inp=listEl.querySelector(`input[data-i="${i}"][data-k="${k}"]`);
       if(inp) inp.value=t.toFixed(1);
+      updateRangeBar(prefix,i,arr);
       if(afterSet) afterSet(i);
+    });
+  });
+  listEl.querySelectorAll('button[data-playsel]').forEach(b=>{
+    b.addEventListener('click',async ()=>{
+      const prefix=b.dataset.prefix, i=+b.dataset.idx;
+      const box=document.getElementById('scrub-'+prefix+'-'+i), v=box.querySelector('video');
+      const c=arr[i]; if(!c) return;
+      try{ v.currentTime=c.start; }catch(e){}
+      await v.play().catch(()=>{});
+      const onTime=()=>{
+        if(v.currentTime>=c.end || v.ended){ v.pause(); v.removeEventListener('timeupdate',onTime); }
+      };
+      v.addEventListener('timeupdate',onTime);
     });
   });
 }
@@ -484,6 +507,7 @@ function renderClipList(){
       } else {
         clips[i][k]=Math.max(0,Math.min(val,clips[i].duration));
       }
+      updateRangeBar('m',i,clips);
     });
   });
   clipListEl.querySelectorAll('select[data-fi]').forEach(sel=>{
@@ -846,17 +870,14 @@ function showTab(which){
   tabBtnReels.classList.toggle('active',toReels);
   tabBtnCutter.classList.toggle('active',!toReels);
   if(previewing){ previewing=false; if(rafId) cancelAnimationFrame(rafId); previewBtn.textContent='▶️ முன்னோட்டம் பார்'; }
-  if(previewing2){ previewing2=false; if(rafId2) cancelAnimationFrame(rafId2); cutPreviewBtn.textContent='▶️ முன்னோட்டம் பார்'; }
 }
 tabBtnReels.addEventListener('click',()=>showTab('reels'));
 tabBtnCutter.addEventListener('click',()=>showTab('cutter'));
 
 /* ================= VIDEO CUTTER & MERGER (Tab 2) ================= */
 const cutClipInput=document.getElementById('cutClipInput'), cutClipListEl=document.getElementById('cutClipList');
-const cutPreviewLabel=document.getElementById('cutPreviewLabel');
 const cutOutRatio=document.getElementById('cutOutRatio');
 const cutCv=document.getElementById('cutCv'), cutCtx=cutCv.getContext('2d');
-const cutPreviewBtn=document.getElementById('cutPreviewBtn');
 const cutExportBtn=document.getElementById('cutExportBtn'), cutDlBtn=document.getElementById('cutDlBtn');
 const cutPWrap=document.getElementById('cutPWrap'), cutPBar=document.getElementById('cutPBar'), cutStatusText=document.getElementById('cutStatusText');
 const cutHv=document.getElementById('cutHv'), cutCustomAudioEl=document.getElementById('cutCustomAudioEl');
@@ -933,7 +954,7 @@ function renderCutClipList(){
     inp.addEventListener('input',()=>{
       const i=+inp.dataset.i, k=inp.dataset.k, val=parseFloat(inp.value)||0;
       clips2[i][k]=Math.max(0,Math.min(val,clips2[i].duration));
-      if(!rafId2) renderCutStatic();
+      updateRangeBar('c',i,clips2);
     });
   });
   cutClipListEl.querySelectorAll('input[data-ai2]').forEach(inp=>{
@@ -961,23 +982,7 @@ function renderCutClipList(){
 }
 
 function renderCutStatic(){
-  if(clips2.length){
-    if(previewClipIndex2>=clips2.length) previewClipIndex2=0;
-    const c=clips2[previewClipIndex2];
-    cutPreviewLabel.textContent='கிளிப் '+(previewClipIndex2+1)+' காட்டப்படுகிறது ('+c.start.toFixed(1)+'s முதல்)';
-    const draw=()=>{ cutCtx.fillStyle='#000'; cutCtx.fillRect(0,0,cutCv.width,cutCv.height); drawRectCover(cutHv,0,0,cutCv.width,cutCv.height,'reels'); };
-    if(cutHv.src!==c.url){
-      cutHv.src=c.url;
-      cutHv.onloadedmetadata=()=>{ seekAndDraw(cutHv,c.start,draw); };
-    } else {
-      seekAndDraw(cutHv,c.start,draw);
-    }
-  } else {
-    cutPreviewLabel.textContent='';
-    cutCtx.fillStyle='#000'; cutCtx.fillRect(0,0,cutCv.width,cutCv.height);
-    cutCtx.fillStyle='#888'; cutCtx.font='20px Segoe UI, sans-serif'; cutCtx.textAlign='center';
-    cutCtx.fillText('வீடியோ கிளிப் பதிவேற்றவும்',cutCv.width/2,cutCv.height/2);
-  }
+  applyCutCanvasSize();
 }
 applyCutCanvasSize(); renderCutStatic();
 
@@ -1008,15 +1013,6 @@ async function playSequenceSingle2(onFrame,isActive){
 }
 
 function cutTotalDuration(){ return clips2.reduce((s,c)=>s+(c.end-c.start),0)||1; }
-
-cutPreviewBtn.addEventListener('click', async ()=>{
-  if(!clips2.length){ cutStatusText.textContent='முதலில் வீடியோ கிளிப் பதிவேற்றவும்.'; return; }
-  ensureAudioGraph();
-  if(previewing2){ previewing2=false; if(rafId2) cancelAnimationFrame(rafId2); cutPreviewBtn.textContent='▶️ முன்னோட்டம் பார்'; renderCutStatic(); return; }
-  previewing2=true; cutPreviewBtn.textContent='⏸️ நிறுத்து';
-  await playSequenceSingle2(null, ()=>previewing2);
-  previewing2=false; cutPreviewBtn.textContent='▶️ முன்னோட்டம் பார்'; renderCutStatic();
-});
 
 cutExportBtn.addEventListener('click', async ()=>{
   if(!clips2.length){ cutStatusText.textContent='முதலில் வீடியோ கிளிப் பதிவேற்றவும்.'; return; }
