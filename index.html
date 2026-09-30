@@ -972,11 +972,15 @@ exportBtn.addEventListener('click', async ()=>{
   }
 });
 
+function sanitizeFilename(s){
+  const cleaned=(s||'').trim().replace(/[\\\/:*?"<>|]+/g,'').replace(/\s+/g,'_').slice(0,60);
+  return cleaned || 'ntk-reel';
+}
 dlBtn.addEventListener('click', ()=>{
   if(!lastBlob) return;
   const url=URL.createObjectURL(lastBlob);
   const a=document.createElement('a');
-  a.href=url; a.download='ntk-reel.webm';
+  a.href=url; a.download=sanitizeFilename(titleOn.checked ? titleText.value : '')+'.webm';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url), 10000);
   statusText.textContent='✅ பதிவிறக்கம் தொடங்கியது!';
