@@ -306,7 +306,7 @@ cv.width=OUT_W; cv.height=OUT_H;
 let clips=[];
 let previewClipIndex=0;
 let logoImg=null;
-let rafId=null, lastBlob=null, tickerOffset=0;
+let rafId=null, lastBlob=null, lastExt='webm', tickerOffset=0;
 let audioCtx=null, audioDest=null;
 let slotVideos=[], slotAudios=[];
 
@@ -488,6 +488,20 @@ function gridRects(mode){
   return null;
 }
 
+function pickRecordingMime(){
+  const candidates=[
+    {mime:'video/mp4;codecs=avc1.42E01E,mp4a.40.2', ext:'mp4'},
+    {mime:'video/mp4;codecs=h264,aac', ext:'mp4'},
+    {mime:'video/mp4', ext:'mp4'},
+    {mime:'video/webm;codecs=vp9,opus', ext:'webm'},
+    {mime:'video/webm;codecs=vp8,opus', ext:'webm'},
+    {mime:'video/webm', ext:'webm'}
+  ];
+  for(const c of candidates){
+    try{ if(MediaRecorder.isTypeSupported(c.mime)) return c; }catch(e){}
+  }
+  return {mime:'video/webm', ext:'webm'};
+}
 function ensureAudioGraph(){
   if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
   if(!audioDest) audioDest=audioCtx.createMediaStreamDestination();
@@ -721,16 +735,48 @@ function tickerStep(){ const v=parseFloat(tickerCustom.value); return (isFinite(
 tickerSpeed.addEventListener('change',()=>{ tickerCustom.value=tickerSpeed.value; tickerCustomNum.value=tickerSpeed.value; });
 tickerCustom.addEventListener('input',()=>{ tickerCustomNum.value=tickerCustom.value; });
 tickerCustomNum.addEventListener('input',()=>{ const v=Math.max(0.5,Math.min(25,parseFloat(tickerCustomNum.value)||4)); tickerCustom.value=v; });
+function fitTitleText(text,maxWidth,maxLines){
+  const minFont=16; let fontSize=34;
+  function wrapAt(fs){
+    ctx.font='bold '+fs+'px Segoe UI, sans-serif';
+    const words=text.split(/\s+/); const lines=[]; let cur='';
+    for(const w of words){
+      const test=cur?cur+' '+w:w;
+      if(ctx.measureText(test).width<=maxWidth){ cur=test; }
+      else { if(cur) lines.push(cur); cur=w; }
+    }
+    if(cur) lines.push(cur);
+    return lines;
+  }
+  while(fontSize>minFont){
+    const lines=wrapAt(fontSize);
+    if(lines.length<=maxLines) return {fontSize,lines};
+    fontSize-=2;
+  }
+  // குறைந்தபட்ச அளவிலும் பொருந்தவில்லை என்றால் கடைசி வரியை "…" வைத்து குறுக்கவும்
+  let lines=wrapAt(minFont).slice(0,maxLines);
+  ctx.font='bold '+minFont+'px Segoe UI, sans-serif';
+  let last=lines[lines.length-1]||'';
+  while(last.length>1 && ctx.measureText(last+'…').width>maxWidth) last=last.slice(0,-1);
+  if(lines.length) lines[lines.length-1]=last+'…';
+  return {fontSize:minFont,lines};
+}
 function drawOverlays(){
   if(titleOn.checked && titleText.value.trim()){
     ctx.save();
-    ctx.font='bold 34px Segoe UI, sans-serif'; ctx.textAlign='center';
-    const barH=58; let barY=30;
+    ctx.textAlign='center';
+    const maxWidth=OUT_W-48;
+    const {fontSize,lines}=fitTitleText(titleText.value.trim(),maxWidth,2);
+    const lineH=Math.round(fontSize*1.3);
+    const barH=lineH*lines.length+20;
+    let barY=30;
     const p=titlePos.value;
     if(p==='middle') barY=Math.round(OUT_H/2-barH/2);
     else if(p==='bottom') barY=OUT_H-(tickerOn.checked?52:0)-barH-20;
     ctx.globalAlpha=0.55; ctx.fillStyle=titleBg.value; ctx.fillRect(0,barY,OUT_W,barH);
-    ctx.globalAlpha=1; ctx.fillStyle='#fff'; ctx.fillText(titleText.value.trim(),OUT_W/2,barY+38);
+    ctx.globalAlpha=1; ctx.fillStyle='#fff';
+    ctx.font='bold '+fontSize+'px Segoe UI, sans-serif';
+    lines.forEach((line,idx)=>{ ctx.fillText(line,OUT_W/2,barY+10+lineH*(idx+0.75)); });
     ctx.restore();
   }
   if(logoOn.checked && logoImg){
@@ -947,10 +993,8 @@ exportBtn.addEventListener('click', async ()=>{
     const vidStream=cv.captureStream(30);
     const audioTrack=audioDest.stream.getAudioTracks()[0];
     const stream=audioTrack? new MediaStream([...vidStream.getVideoTracks(),audioTrack]) : vidStream;
-    let mime='video/webm;codecs=vp9,opus';
-    if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm;codecs=vp8,opus';
-    if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm';
-    const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:5_000_000});
+    const picked=pickRecordingMime(); lastExt=picked.ext;
+    const rec=new MediaRecorder(stream,{mimeType:picked.mime,videoBitsPerSecond:5_000_000});
     const chunks=[]; rec.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
     const done=new Promise(r=>rec.onstop=r);
     rec.start(100);
@@ -961,7 +1005,7 @@ exportBtn.addEventListener('click', async ()=>{
       pBar.style.width=pct+'%'; statusText.textContent='ரெக்கார்டிங்... '+pct+'%';
     });
     rec.stop(); await done;
-    lastBlob=new Blob(chunks,{type:'video/webm'});
+    lastBlob=new Blob(chunks,{type:picked.mime});
     pBar.style.width='100%';
     statusText.textContent='✅ முடிந்தது! கீழே பொத்தானை க்ளிக் செய்யவும்.';
     dlBtn.style.display='block';
@@ -980,7 +1024,7 @@ dlBtn.addEventListener('click', ()=>{
   if(!lastBlob) return;
   const url=URL.createObjectURL(lastBlob);
   const a=document.createElement('a');
-  a.href=url; a.download=sanitizeFilename(titleOn.checked ? titleText.value : '')+'.webm';
+  a.href=url; a.download=sanitizeFilename(titleOn.checked ? titleText.value : '')+'.'+lastExt;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url), 10000);
   statusText.textContent='✅ பதிவிறக்கம் தொடங்கியது!';
@@ -1007,7 +1051,7 @@ const cutCv=document.getElementById('cutCv'), cutCtx=cutCv.getContext('2d');
 const cutExportBtn=document.getElementById('cutExportBtn'), cutDlBtn=document.getElementById('cutDlBtn');
 const cutPWrap=document.getElementById('cutPWrap'), cutPBar=document.getElementById('cutPBar'), cutStatusText=document.getElementById('cutStatusText');
 const cutHv=document.getElementById('cutHv'), cutCustomAudioEl=document.getElementById('cutCustomAudioEl');
-let clips2=[], previewClipIndex2=0, previewing2=false, rafId2=null, lastBlob2=null;
+let clips2=[], previewClipIndex2=0, previewing2=false, rafId2=null, lastBlob2=null, lastExt2='webm';
 
 function cutCanvasSize(){
   if(cutOutRatio.value==='916') return {w:540,h:960};
@@ -1150,10 +1194,8 @@ cutExportBtn.addEventListener('click', async ()=>{
     const vidStream=cutCv.captureStream(30);
     const audioTrack=audioDest.stream.getAudioTracks()[0];
     const stream=audioTrack? new MediaStream([...vidStream.getVideoTracks(),audioTrack]) : vidStream;
-    let mime='video/webm;codecs=vp9,opus';
-    if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm;codecs=vp8,opus';
-    if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm';
-    const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:5_000_000});
+    const picked2=pickRecordingMime(); lastExt2=picked2.ext;
+    const rec=new MediaRecorder(stream,{mimeType:picked2.mime,videoBitsPerSecond:5_000_000});
     const chunks=[]; rec.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
     const done=new Promise(r=>rec.onstop=r);
     rec.start(100);
@@ -1164,7 +1206,7 @@ cutExportBtn.addEventListener('click', async ()=>{
       cutPBar.style.width=pct+'%'; cutStatusText.textContent='ரெக்கார்டிங்... '+pct+'%';
     }, ()=>true);
     rec.stop(); await done;
-    lastBlob2=new Blob(chunks,{type:'video/webm'});
+    lastBlob2=new Blob(chunks,{type:picked2.mime});
     cutPBar.style.width='100%';
     cutStatusText.textContent='✅ முடிந்தது! கீழே பொத்தானை க்ளிக் செய்யவும்.';
     cutDlBtn.style.display='block';
@@ -1179,7 +1221,7 @@ cutDlBtn.addEventListener('click', ()=>{
   if(!lastBlob2) return;
   const url=URL.createObjectURL(lastBlob2);
   const a=document.createElement('a');
-  a.href=url; a.download='ntk-cut-merged.webm';
+  a.href=url; a.download='ntk-cut-merged.'+lastExt2;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url), 10000);
   cutStatusText.textContent='✅ பதிவிறக்கம் தொடங்கியது!';
